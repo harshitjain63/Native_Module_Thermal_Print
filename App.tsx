@@ -1,117 +1,80 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
+import {View, StyleSheet, Text, Alert, Button} from 'react-native';
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import {LogLevel, OneSignal} from 'react-native-onesignal';
+import {useNetInfo} from '@react-native-community/netinfo';
+import ThermalPrinterModule from 'react-native-thermal-printer';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
+  const [wifiAddress, setWifiAddress] = React.useState('');
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+  const netInfo = useNetInfo();
+  const getWifiAddress = React.useCallback(() => {
+    try {
+      if (netInfo.details && 'ipAddress' in netInfo.details) {
+        setWifiAddress(netInfo.details.ipAddress as string);
+      } else {
+        Alert.alert('Wifi Not Available');
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }, [netInfo.details]);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+  React.useEffect(() => {
+    getWifiAddress();
+  }, [getWifiAddress, netInfo.isConnected]);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  //One Signal Code
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  OneSignal.Debug.setLogLevel(LogLevel.Verbose);
+
+  OneSignal.initialize('b51a4c39-d728-4338-b117-6435fd2b3137');
+
+  OneSignal.Notifications.requestPermission(true);
+
+  OneSignal.Notifications.addEventListener('click', event => {
+    console.log('OneSignal: notification clicked:', event);
+  });
+
+  // Thermal Print
+
+  const Network = async () => {
+    ThermalPrinterModule.defaultConfig.ip = wifiAddress;
+    ThermalPrinterModule.defaultConfig.port = 9100;
+    ThermalPrinterModule.defaultConfig.autoCut = false;
+    ThermalPrinterModule.defaultConfig.timeout = 20000;
+    try {
+      await ThermalPrinterModule.printTcp({payload: 'Print Something'});
+    } catch (error) {
+      console.log((error as any).message);
+    }
+  };
+
+  const Bluetooth = async () => {
+    try {
+      await ThermalPrinterModule.printBluetooth({
+        payload: 'Print Using Bluetooth',
+      });
+    } catch (err) {
+      console.log((err as any).message);
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <View style={styles.container}>
+      <Text>hello</Text>
+      <Button title="Bluetooth" onPress={Bluetooth} />
+      <Button title="Network" onPress={Network} />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  container: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    gap: 12,
   },
 });
 
